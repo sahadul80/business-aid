@@ -1,0 +1,46 @@
+# Business Aid — Website
+
+A responsive Next.js + TypeScript homepage for Business Aid, serving e-commerce/F-commerce owners, entrepreneurs, individuals seeking income-tax support, and businesses needing RJSC registration or compliance assistance.
+
+## Homepage structure
+
+1. **Header** — one-line desktop navigation, brand, and consultation CTA.
+2. **Hero** — clear business positioning, a short audience-focused description, and the featured 8× growth result from the supplied client-work brief.
+3. **Services** — the selected service detail is on the left; the E-commerce and Legal Aid categories and the active category's service submenu are on the right on desktop. On smaller screens the layout stacks for readability.
+   - **E-commerce:** SEO & AEO, Content Creation, Media Buying, and Business Strategy.
+   - **Legal Aid:** Income Tax, RJSC Registration & Compliance, and Audit Assistance.
+4. **EZsell** — an embedded, scrollable EZsell website preview on the left. The product introduction, key benefits, and links to the EZsell website and Facebook page appear on the right.
+5. **Selected Work** — restored client references, filterable by service, positioned between EZsell and Contact.
+6. **Contact Us** — phone and email links, office address, WhatsApp link, and an inquiry form that prepares a message in WhatsApp.
+7. **Footer** — Business Aid contact details and utility links.
+
+Section headings are kept to one line on desktop where space permits. Section descriptions are concise and styled to occupy two lines; small screens can wrap naturally to prevent overflow.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Then open `http://localhost:3000`.
+
+## Main files
+
+- `app/page.tsx` — homepage section order.
+- `app/layout.tsx` — metadata, fonts, and root layout.
+- `app/globals.css` — design tokens, responsive layouts, animations, typography, and iframe styling.
+- `components/Sections.tsx` — header, hero, services, EZsell, selected work, contact, footer, and WhatsApp action.
+- `components/Scenes.tsx` — SVG illustrations.
+- `lib/data.ts` — service names, client-work data, filters, and contact information.
+
+## Editing content
+
+Edit `SERVICES`, `WORK_TAGS`, `CLIENTS`, and `CONTACT` in `lib/data.ts`. Service descriptions and EZsell benefit copy are in `components/Sections.tsx`.
+
+## Notes
+
+- The contact form opens WhatsApp with a prefilled message; it does not submit to a server or CRM.
+- The EZsell iframe relies on `ezsell.xyz` allowing embedding via its security headers. If embedding is blocked, visitors can use the visible link to open the full site in a new tab.
+- Client names and results are reference content from the supplied framework. Confirm permission and the accuracy of specific outcomes before publication.
+# business-aid
