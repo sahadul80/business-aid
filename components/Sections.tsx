@@ -130,6 +130,8 @@ export function Nav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const navRef = useRef<HTMLElement>(null);
+  const menuPanelRef = useRef<HTMLElement>(null);
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
 
   // Read the already-resolved system/stored theme after hydration. If the user
   // has not selected a preference, keep following OS appearance changes.
@@ -160,18 +162,32 @@ export function Nav() {
   };
 
   useEffect(() => {
-    if (!isMenuOpen) return;
+    if (!isMenuOpen || !window.matchMedia('(max-width: 860px)').matches) {
+      if (menuPanelRef.current?.contains(document.activeElement)) menuToggleRef.current?.focus();
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusFrame = window.requestAnimationFrame(() => {
+      menuPanelRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    });
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMenuOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsMenuOpen(false);
+      }
     };
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node)) setIsMenuOpen(false);
+    const closeOnResize = () => {
+      if (!window.matchMedia('(max-width: 860px)').matches) setIsMenuOpen(false);
     };
     window.addEventListener('keydown', closeOnEscape);
-    document.addEventListener('pointerdown', closeOnOutsidePress);
+    window.addEventListener('resize', closeOnResize);
     return () => {
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener('keydown', closeOnEscape);
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      window.removeEventListener('resize', closeOnResize);
     };
   }, [isMenuOpen]);
 
@@ -236,10 +252,42 @@ export function Nav() {
   }, []);
 
   return (
-    <header ref={navRef} className={`nav${isMenuOpen ? ' is-menu-open' : ''}`} onKeyDown={(event) => { if (event.key === 'Escape') setIsMenuOpen(false); }}>
+    <header
+      ref={navRef}
+      className={`nav${isMenuOpen ? ' is-menu-open' : ''}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setIsMenuOpen(false);
+        if (event.key !== 'Tab' || !isMenuOpen || !window.matchMedia('(max-width: 860px)').matches) return;
+        const links = menuPanelRef.current?.querySelectorAll<HTMLElement>('a[href]');
+        const first = links?.[0];
+        const last = links?.[links.length - 1];
+        const toggle = menuToggleRef.current;
+        if (!first || !last || !toggle) return;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          toggle.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          toggle.focus();
+        } else if (event.shiftKey && document.activeElement === toggle) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === toggle) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+    >
+      <button
+        type="button"
+        className="mobile-drawer-backdrop"
+        aria-label="Close navigation menu"
+        tabIndex={isMenuOpen ? 0 : -1}
+        onClick={() => setIsMenuOpen(false)}
+      />
       <div className="wrap nav-in">
         <Logo />
-        <nav aria-label="Primary navigation" className="links" id="primary-navigation">
+        <nav ref={menuPanelRef} aria-label="Primary navigation" className="links" id="primary-navigation">
           {NAV_ITEMS.map((item) => (
             <a
               key={item.id}
@@ -252,32 +300,35 @@ export function Nav() {
             </a>
           ))}
         </nav>
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-pressed={theme === 'dark'}
-        >
-          {theme === 'dark' ? (
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.8 15.4A8.5 8.5 0 0 1 8.6 3.2 8.7 8.7 0 1 0 20.8 15.4Z" /></svg>
-          )}
-        </button>
-        <button
-          type="button"
-          className={`mobile-menu-toggle${isMenuOpen ? ' is-open' : ''}`}
-          aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-          aria-expanded={isMenuOpen}
-          aria-controls="primary-navigation"
-          onClick={() => setIsMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        <div className="nav-actions" role="group" aria-label="Display and navigation controls">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-pressed={theme === 'dark'}
+          >
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.8 15.4A8.5 8.5 0 0 1 8.6 3.2 8.7 8.7 0 1 0 20.8 15.4Z" /></svg>
+            )}
+          </button>
+          <button
+            type="button"
+            ref={menuToggleRef}
+            className={`mobile-menu-toggle${isMenuOpen ? ' is-open' : ''}`}
+            aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isMenuOpen}
+            aria-controls="primary-navigation"
+            onClick={() => setIsMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
       </div>
     </header>
   );
