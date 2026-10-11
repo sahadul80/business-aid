@@ -73,9 +73,11 @@ export function TagInput({ options, value, onChange, placeholder, label }: { opt
 }
 
 /* ---------- Nav / footer / WhatsApp ---------- */
+const BUSINESS_AID_LOGO = '/busines-aid-logo.png';
+
 const Logo = () => (
   <a href="#top" className="logo" aria-label="Business Aid home">
-    <span className="mark">ba</span><span className="word">business<b>aid</b></span>
+    <img className="brand-logo" src={BUSINESS_AID_LOGO} alt="Business Aid — Where business gets better" />
   </a>
 );
 
@@ -223,56 +225,140 @@ export function Services() {
   );
 }
 
-/* ---------- Work ---------- */
-const PAL = [['#EAF4F3', '#3F8B84', '#F4B43C'], ['#3F8B84', '#EAF4F3', '#4D4D4D'], ['#173532', '#3F8B84', '#F4B43C'], ['#F4B43C', '#173532', '#EAF4F3'], ['#4D4D4D', '#F7F7F7', '#3F8B84']];
-function Tile({ s, big }: { s: number; big?: string }) {
-  const [a, b, c] = PAL[s % PAL.length];
-  const k = s % 3;
+/* ---------- Selected work: high-resolution brand marks and clear service references ---------- */
+const BRAND_LABELS: Record<string, string> = {
+  'jbhalalfood.com': 'JB HALAL FOOD',
+  'gulfgainsborough.co.uk': 'GULF GAINSBOROUGH',
+  'thefishbazar.com': 'THE FISH BAZAR',
+  'farmzila.com.bd': 'FARMZILA',
+  'smartmeals.online': 'SMART MEALS',
+  'japangoodsbd.com': 'JAPAN GOODS',
+  'mrsolutionbd.com': 'MR SOLUTION',
+  'rongdhonubd.com': 'RONGDHONU',
+  'facebook.com/shop.radience': 'RADIENCE',
+  'unicornbd.com': 'UNICORN BD',
+  'ariosebd.com': 'ARIOSE',
+  'koyabazar.com': 'KOYA BAZAR',
+};
+
+function brandLabel(client: (typeof CLIENTS)[number]) {
+  return BRAND_LABELS[client.name] ?? client.name;
+}
+
+function workTagLabel(tag: string) {
+  const labels: Record<string, string> = {
+    'Content creation': 'Content',
+    'Legal / tech support': 'Legal / tech',
+    'Web / digital presence': 'Web / digital',
+  };
+  return labels[tag] ?? tag;
+}
+
+function PartnerLogo({ client, compact = false }: { client: (typeof CLIENTS)[number]; compact?: boolean }) {
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const origin = new URL(client.href).origin;
+  const iconSources = [
+    client.logoPath,
+    client.logoUrl,
+    `${origin}/apple-touch-icon.png`,
+    `${origin}/favicon.ico`,
+    `https://www.google.com/s2/favicons?domain=${client.logoDomain}&sz=512`,
+  ].filter((src): src is string => Boolean(src));
+  const source = iconSources[sourceIndex];
+
   return (
-    <svg viewBox="0 0 240 160" className="tile" aria-hidden preserveAspectRatio="xMidYMid slice">
-      <rect width="240" height="160" fill={a} />
-      {k === 0 && <><circle cx="80" cy="90" r="46" fill={b} className="an float" style={v(s)} /><circle cx="170" cy="60" r="26" fill={c} /></>}
-      {k === 1 && [0, 1, 2, 3, 4].map((i) => <rect key={i} x={30 + i * 38} y={130 - (i + 1) * 20} width="26" height={(i + 1) * 20 + 10} rx="8" fill={i === 4 ? c : b} className="an rise" style={v(i)} />)}
-      {k === 2 && <><path d="M0 120 Q60 40 120 100 T240 60 V160 H0Z" fill={b} /><circle cx="190" cy="40" r="20" fill={c} className="an float" style={v(s)} /></>}
-      {big && <text x="120" y="110" textAnchor="middle" fontSize="84" fontWeight="700" fill="#fff" fontFamily="var(--font-display)">{big}</text>}
-    </svg>
+    <div className={`partner-logo-surface${compact ? ' compact' : ''}`} role="img" aria-label={`${brandLabel(client)} logo`}>
+      {source ? (
+        <img
+          key={source}
+          className="partner-logo-image"
+          src={source}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setSourceIndex((index) => Math.min(index + 1, iconSources.length))}
+        />
+      ) : (
+        <span className="partner-logo-fallback" aria-hidden="true">{compact ? brandLabel(client).split(/\s+/).map((part) => part[0]).join('').slice(0, 3) : brandLabel(client)}</span>
+      )}
+    </div>
+  );
+}
+
+function WorkMarqueeItem({ client, duplicate = false }: { client: (typeof CLIENTS)[number]; duplicate?: boolean }) {
+  return (
+    <a
+      className="work-marquee-item"
+      href={client.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      tabIndex={duplicate ? -1 : undefined}
+      aria-label={duplicate ? undefined : `Visit ${brandLabel(client)}`}
+    >
+      <span className="work-marquee-logo"><PartnerLogo client={client} compact /></span>
+      <span className="work-marquee-name">{brandLabel(client)}</span>
+      <span className="work-marquee-arrow" aria-hidden="true">↗</span>
+    </a>
   );
 }
 
 export function Work() {
   const [tags, setTags] = useState<string[]>([]);
   const shown = CLIENTS.filter((client) => !tags.length || tags.some((tag) => client.tags.includes(tag)));
-  const names = CLIENTS.map((client) => client.name);
   return (
     <section id="work" className="sec tint work-section">
       <div className="wrap">
         <div className="section-intro">
           <p className="eyebrow">Selected work</p>
-          <h2 className="section-title">A look at our client work.</h2>
-          <p className="section-copy">Explore businesses we have supported with marketing, digital growth, sales strategy, and practical business solutions.</p>
+          <h2 className="section-title">Client work across industries.</h2>
+          <p className="section-copy">Explore client businesses across e-commerce, food delivery, retail, home services, and international markets, alongside the services Business Aid has provided.</p>
         </div>
         <div className="work-filter-row">
           <p>Explore by service</p>
           <TagInput label="Filter work by service" options={WORK_TAGS} value={tags} onChange={setTags} placeholder="Choose a service to filter" />
         </div>
-        <div className="grid">
-          {shown.map((client) => {
-            const idx = CLIENTS.indexOf(client);
-            return (
-              <article key={client.name} className={`card pop-in ${client.result ? 'feat' : ''}`}>
-                <Tile s={idx} big={client.result} />
-                <div className="body">
-                  <h3>{client.name}</h3>
-                  <p>{client.industry}</p>
-                  <ul className="chips">{client.tags.map((tag) => <li key={tag} className={`chip sm ${tags.includes(tag) ? 'on' : ''}`}>{tag}</li>)}</ul>
+        <div className="client-grid">
+          {shown.map((client, index) => (
+            <article
+              key={client.name}
+              className={`client-card ${client.result ? 'client-featured' : ''}`}
+              style={{ animationDelay: `${(index % 6) * 55}ms` }}
+            >
+              <a className="client-logo-link" href={client.href} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${client.name}`}>
+                <PartnerLogo client={client} />
+              </a>
+              <div className="client-details">
+                <div className="client-site-row">
+                  <a className="client-site" href={client.href} target="_blank" rel="noopener noreferrer" aria-label={`Website: ${client.name}`}>
+                    {client.name}<span aria-hidden="true">↗</span>
+                  </a>
+                  {client.result && <span className="client-result">{client.result}</span>}
                 </div>
-              </article>
-            );
-          })}
+                <p className="client-business-type">{client.businessType}</p>
+                <div className="client-services" aria-label={`Services provided: ${client.tags.join(', ')}`}>
+                  {client.tags.map((tag) => <span className="client-service-pill" key={tag}>{workTagLabel(tag)}</span>)}
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
-        {shown.length === 0 && <p className="empty-work">No client examples match that service. Clear the filter to see all work.</p>}
-        <div className="marq" aria-hidden><div className="track">{[...names, ...names].map((name, i) => <span key={`${name}-${i}`}>{name}</span>)}</div></div>
-        <p className="work-note">Client examples are shown for reference. Specific outcomes should be confirmed with each client before publication.</p>
+        {shown.length === 0 && <p className="empty-work">No client examples match that service. Remove a filter to see more work.</p>}
+        <p className="work-note">Client names and logos identify the referenced businesses. Services listed reflect the current project framework; publish client work and performance claims only with appropriate approval.</p>
+
+        <div className="work-marquee" aria-label="Client and partner businesses">
+          <p className="work-marquee-kicker">Businesses across our client portfolio</p>
+          <div className="work-marquee-window">
+            <div className="work-marquee-track">
+              <div className="work-marquee-group">
+                {CLIENTS.map((client) => <WorkMarqueeItem key={`marquee-${client.name}`} client={client} />)}
+              </div>
+              <div className="work-marquee-group" aria-hidden="true">
+                {CLIENTS.map((client) => <WorkMarqueeItem key={`marquee-copy-${client.name}`} client={client} duplicate />)}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -309,7 +395,7 @@ export function EZsell() {
           <div className="ez-copy">
             <span className="eyebrow">Our product</span>
             <h2 className="section-title">Meet EZsell.</h2>
-            <p className="section-copy">A selling platform for e-commerce and Facebook-based businesses, with an AI sales agent to support customer conversations.</p>
+            <p className="section-copy">A selling platform for e-commerce and Facebook-based businesses, with AI-assisted customer conversations.</p>
             <div className="ez-benefits">
               <h3>Made for online sellers</h3>
               <ul>
