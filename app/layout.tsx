@@ -9,6 +9,25 @@ export const metadata: Metadata = {
   title: 'Business Aid | Where business gets better',
   description: 'E-commerce growth (SEO & AEO, content, media buying, strategy) and Legal Aid (income tax, RJSC, audit) under one roof in Dhaka.',
   metadataBase: new URL('https://thebizaid.com'),
+  applicationName: 'Business Aid',
+  manifest: '/business-aid-app-v3.webmanifest',
+  icons: {
+    icon: [
+      { url: '/business-aid-favicon-v3.ico', type: 'image/x-icon', sizes: 'any' },
+      { url: '/business-aid-icon-32-v3.png', type: 'image/png', sizes: '32x32' },
+      { url: '/business-aid-app-icon-192-v3.png', type: 'image/png', sizes: '192x192' },
+      { url: '/business-aid-app-icon-512-v3.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/business-aid-favicon-v3.ico',
+    apple: [
+      { url: '/business-aid-apple-touch-icon-v3.png', type: 'image/png', sizes: '180x180' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Business Aid',
+    statusBarStyle: 'default',
+  },
 };
 export const viewport: Viewport = { themeColor: '#3F8B84' };
 

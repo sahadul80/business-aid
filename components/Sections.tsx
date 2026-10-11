@@ -395,12 +395,16 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
 export function Services() {
   const [cat, setCat] = useState<Cat>('growth');
   const [slug, setSlug] = useState('seo');
+  // Mobile accordion state is separate so closing a mobile card never changes the desktop detail panel.
+  const [mobileOpenSlug, setMobileOpenSlug] = useState<string | null>('seo');
   const list = SERVICES.filter((service) => service.cat === cat);
   const active = list.find((service) => service.slug === slug) ?? list[0];
   const Scene = SCENES[active.slug];
   const pick = (category: Cat) => {
+    const firstService = SERVICES.find((service) => service.cat === category)!;
     setCat(category);
-    setSlug(SERVICES.find((service) => service.cat === category)!.slug);
+    setSlug(firstService.slug);
+    setMobileOpenSlug(firstService.slug);
   };
 
   return (
@@ -460,6 +464,87 @@ export function Services() {
               <h4>How we can help</h4>
               <ul className="chips">{active.items.map((item) => <li className="chip" key={item}>{item}</li>)}</ul>
               <a className="btn" href="#contact" onClick={() => window.dispatchEvent(new CustomEvent('ba:service', { detail: active.name }))}>Discuss this service</a>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Mobile-only service explorer: selected service details expand inside the chosen service group. */}
+        <div className="service-explorer-mobile">
+          <div className="mobile-service-area-select">
+            <p className="nav-label">Choose a section area</p>
+            <div className="category-options" role="tablist" aria-label="Service areas">
+              {(['growth', 'legal'] as Cat[]).map((category) => (
+                <button
+                  key={category}
+                  id={`mobile-service-area-${category}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={cat === category}
+                  aria-controls="mobile-service-area-panel"
+                  className={`category-option ${category}`}
+                  onClick={() => pick(category)}
+                >
+                  <span className="category-title">{category === 'growth' ? 'E-commerce' : 'Legal Aid'}</span>
+                  <span className="category-subtitle">{category === 'growth' ? 'Growth & marketing' : 'Tax & company compliance'}</span>
+                  <span className="category-arrow" aria-hidden="true">↗</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mobile-service-area-panel" id="mobile-service-area-panel" role="tabpanel" aria-labelledby={`mobile-service-area-${cat}`}>
+            <div className="mobile-services-container">
+              <p className="submenu-heading">{cat === 'growth' ? 'Growth services' : 'Legal aid services'}</p>
+              <div className="mobile-service-list">
+                {list.map((service) => {
+                  const isOpen = service.slug === mobileOpenSlug;
+                  const cardId = `mobile-service-card-${service.slug}`;
+                  return (
+                    <div className={`mobile-service-entry${isOpen ? ' is-active' : ''}`} key={service.slug}>
+                      <button
+                        id={`mobile-service-option-${service.slug}`}
+                        type="button"
+                        aria-expanded={isOpen}
+                        aria-controls={isOpen ? cardId : undefined}
+                        className="mobile-service-row"
+                        onClick={() => {
+                          if (mobileOpenSlug === service.slug) {
+                            setMobileOpenSlug(null);
+                          } else {
+                            setSlug(service.slug);
+                            setMobileOpenSlug(service.slug);
+                          }
+                        }}
+                      >
+                        <i className={cat} aria-hidden="true" />
+                        <span>{service.name}</span>
+                        <span className="row-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 20 20" fill="none" focusable="false">
+                            <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+
+                      {isOpen && (
+                        <article className="detail mobile-service-detail pop-in" id={cardId} aria-labelledby={`mobile-service-option-${service.slug}`}>
+                          <div className="mobile-service-visual">
+                            <div className="scene-wrap">{Scene()}</div>
+                          </div>
+                          <div className="service-copy">
+                            <p className="service-kicker">{cat === 'growth' ? 'E-commerce growth & marketing' : 'Legal aid & compliance'}</p>
+                            <h3>{active.name}</h3>
+                            <p className="service-description">{SERVICE_DESCRIPTIONS[active.slug]}</p>
+                            <h4>How we can help</h4>
+                            <ul className="chips">{active.items.map((item) => <li className="chip" key={item}>{item}</li>)}</ul>
+                            <a className="btn" href="#contact" onClick={() => window.dispatchEvent(new CustomEvent('ba:service', { detail: active.name }))}>Discuss this service</a>
+                          </div>
+                        </article>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
