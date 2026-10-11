@@ -373,7 +373,7 @@ export function Hero() {
           </div>
           <div className="months" aria-hidden>{[0, 1, 2, 3, 4].map((i) => <i key={i} className="an dotfill" style={v(i)} />)}</div>
           <p className="cap">jbhalalfood.com, 5 months</p>
-          <div className="cta"><a className="btn" href="#contact">Book a free consultation</a><a className="btn ghost" href="#services">Explore our services</a></div>
+          <div className="cta"><a className="btn sm" href="#contact">Book a consultation</a><a className="btn ghost sm" href="#services">Explore our services</a></div>
         </div>
         <HeroScene />
       </div>
