@@ -4,14 +4,14 @@ A responsive Next.js + TypeScript homepage for Business Aid, serving e-commerce/
 
 ## Homepage structure
 
-1. **Header** — one-line desktop navigation, brand, and consultation CTA.
+1. **Header** — responsive navigation with the Our Work link and a dark/light appearance toggle. The first visit follows the operating-system color preference; a manual choice is saved in browser local storage.
 2. **Hero** — clear business positioning, a short audience-focused description, and the featured 8× growth result from the supplied client-work brief.
 3. **Services** — the selected service detail is on the left; the E-commerce and Legal Aid categories and the active category's service submenu are on the right on desktop. On smaller screens the layout stacks for readability.
    - **E-commerce:** SEO & AEO, Content Creation, Media Buying, and Business Strategy.
    - **Legal Aid:** Income Tax, RJSC Registration & Compliance, and Audit Assistance.
 4. **EZsell** — an embedded, scrollable EZsell website preview on the left. The product introduction, key benefits, and links to the EZsell website and Facebook page appear on the right.
 5. **Selected Work** — restored client references, filterable by service, with a continuously moving partner-logo marquee at the bottom; positioned between EZsell and Contact.
-6. **Contact Us** — phone and email links, office address, WhatsApp link, and an inquiry form that prepares a message in WhatsApp.
+6. **Contact Us** — phone and email links, office address, and a form with two separate actions: submit the enquiry to the Google Sheets API or prepare it in WhatsApp.
 7. **Footer** — Business Aid contact details and utility links.
 
 Section headings are kept to one line on desktop where space permits. All descriptions render in full without CSS line-clamping; concise copy generally occupies two lines on desktop and wraps naturally on small screens to avoid clipping.
@@ -23,13 +23,13 @@ npm install
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Before starting locally, copy `.env.example` to `.env.local` and fill in the Google Sheets values. Then open `http://localhost:3000`.
 
 ## Main files
 
 - `app/page.tsx` — homepage section order.
-- `app/layout.tsx` — metadata, fonts, and root layout.
-- `app/globals.css` — design tokens, responsive layouts, animations, typography, and iframe styling.
+- `app/layout.tsx` — metadata, fonts, root layout, and pre-render theme initialization to avoid a light-mode flash when dark mode is preferred.
+- `app/globals.css` — design tokens, responsive layouts, light/dark contrast styles, animations, typography, and iframe styling.
 - `components/Sections.tsx` — header, hero, services, EZsell, selected work, contact, footer, and WhatsApp action.
 - `components/Scenes.tsx` — SVG illustrations.
 - `lib/data.ts` — service names, client-work data, filters, and contact information.
@@ -40,8 +40,11 @@ Edit `SERVICES`, `WORK_TAGS`, `CLIENTS`, and `CONTACT` in `lib/data.ts`. Service
 
 ## Notes
 
-- The contact form opens WhatsApp with a prefilled message; it does not submit to a server or CRM.
-- The header and footer use the Business Aid logo stored at `public/busines-aid-logo.png`. Partner logos are loaded first from the supplied files in `public/client-logo/`; remote site icons are only fallbacks. The Selected Work marquee reuses the same local marks and pauses on hover/focus; reduced-motion preferences disable the animation.
+- **Google Sheets contact form and enquiry limit:** the `Send enquiry` action POSTs to `app/api/contact/route.ts`, which validates the fields, checks the configured Google Sheet's submission history, and allows at most **3 enquiries per phone number in any rolling 24-hour period**. A fourth enquiry using the same phone number receives HTTP `429` with a retry time in Bangladesh time. The check is server-side and uses the persistent timestamp/phone records in the enquiry sheet; a per-phone in-process queue serializes quick duplicate requests. Do not delete recent rows if you need the rate limit to remain accurate. Google Sheets does not provide an atomic check-and-append transaction, so deployments running multiple server instances can still have a narrow race under truly simultaneous requests; strict cross-instance enforcement requires a transactional/shared rate-limit store. Both regular website submissions and the `Send enquiry on WhatsApp` draft action count toward the limit. WhatsApp drafts are recorded with source `WhatsApp draft`, then opened with a prefilled message; the user must still press Send in WhatsApp. This limit governs the website's enquiry actions and cannot prevent someone from independently messaging the business outside the website. Timestamps are stored as real Sheets date/time values in Bangladesh time (GMT+6 / `Asia/Dhaka`), and the timestamp column is formatted as `yyyy-mm-dd hh:mm:ss AM/PM`. The route also sets the spreadsheet timezone to `Asia/Dhaka`.
+- **Required server environment variables:** copy `.env.example` values into your hosting provider’s server-side environment settings (never expose these values with a `NEXT_PUBLIC_` prefix): `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`, and `GOOGLE_SHEETS_SPREADSHEET_ID`. `GOOGLE_SHEETS_RANGE` is optional and defaults to `Enquiries!A:F`.
+- In Google Cloud, enable the Google Sheets API and create a service account. Share the destination spreadsheet with the service account email as an **Editor**, and ensure the selected tab (default `Enquiries`) exists. Add these column headers in row 1 before the first submission: `Timestamp`, `Name`, `Phone`, `Services`, `Message`, `Source`. Keep recent data rows intact because they are used to enforce the rolling phone-number limit. New enquiries are appended to the next available row. Do not commit a real private key or production `.env` file.
+- The header theme toggle follows `prefers-color-scheme` unless the visitor has saved a manual choice. A manual choice is stored under `business-aid-theme`; the theme initialization script applies the correct mode before page content renders. Partner logo artwork is intentionally kept on a neutral light panel in dark mode to preserve original brand colors.
+- The header and footer use the Business Aid mark stored at `public/business-aid-mark.png`. Partner logos are loaded first from the supplied files in `public/client-logo/`; remote site icons are only fallbacks. The Selected Work marquee reuses the same local marks and pauses on hover/focus; reduced-motion preferences disable the animation.
 - The EZsell iframe relies on `ezsell.xyz` allowing embedding via its security headers. If embedding is blocked, visitors can use the visible link to open the full site in a new tab.
 - Client names and results are reference content from the supplied framework. Confirm permission and the accuracy of specific outcomes before publication.
 

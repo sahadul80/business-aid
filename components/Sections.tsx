@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { CLIENTS, CONTACT, SERVICES, WORK_TAGS, type Cat } from '@/lib/data';
+import { submitForm } from '@/lib/formdata';
 import { Globe, HeroScene, Ring14, SCENES, v } from './Scenes';
 
 /* ---------- hooks ---------- */
@@ -34,7 +35,7 @@ function useCount(to: number, run: boolean, ms = 1600, from = 0) {
 }
 
 /* ---------- TagInput (multi-select chips with suggestions) ---------- */
-export function TagInput({ options, value, onChange, placeholder, label }: { options: string[]; value: string[]; onChange: (v: string[]) => void; placeholder?: string; label: string }) {
+export function TagInput({ options, value, onChange, placeholder, label, inputName, inputInvalid, inputDescribedBy }: { options: string[]; value: string[]; onChange: (v: string[]) => void; placeholder?: string; label: string; inputName?: string; inputInvalid?: boolean; inputDescribedBy?: string }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
@@ -48,7 +49,8 @@ export function TagInput({ options, value, onChange, placeholder, label }: { opt
           <span className="chip on pop-in" key={t}>{t}<button type="button" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>×</button></span>
         ))}
         <input
-          aria-label={label} role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list"
+          aria-label={label} name={inputName} aria-invalid={inputInvalid} aria-describedby={inputDescribedBy}
+          role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list"
           value={q} placeholder={value.length ? '' : placeholder}
           onChange={(e) => { setQ(e.target.value); setHi(0); }}
           onKeyDown={(e) => {
@@ -73,23 +75,209 @@ export function TagInput({ options, value, onChange, placeholder, label }: { opt
 }
 
 /* ---------- Nav / footer / WhatsApp ---------- */
-const BUSINESS_AID_LOGO = '/busines-aid-logo.png';
+const BUSINESS_AID_LOGO = '/business-aid-mark.png';
 
-const Logo = () => (
-  <a href="#top" className="logo" aria-label="Business Aid home">
-    <img className="brand-logo" src={BUSINESS_AID_LOGO} alt="Business Aid — Where business gets better" />
+const Logo = ({ footer = false }: { footer?: boolean }) => (
+  <a href="#top" className={`logo brand-lockup${footer ? ' brand-lockup-footer' : ''}`} aria-label="Business Aid home">
+    <img className="brand-logo" src={BUSINESS_AID_LOGO} alt="" aria-hidden="true" />
+    <span className="brand-copy">
+      <span className="brand-title">business <b>aid</b></span>
+    </span>
   </a>
 );
 
+const NAV_ITEMS = [
+  { id: 'top', label: 'Home', href: '#top' },
+  { id: 'services', label: 'Services', href: '#services' },
+  { id: 'ezsell', label: 'EZsell', href: '#ezsell' },
+  { id: 'work', label: 'Our Work', href: '#work' },
+  { id: 'contact', label: 'Contact', href: '#contact' },
+] as const;
+
+/**
+ * Navigate to the visible content of a section, not just its outer section box.
+ * Sections intentionally have large decorative top padding; native hash jumps
+ * align the outer box and make that padding look like an excessive header gap.
+ */
+function scrollToSectionContent(id: string, header: HTMLElement | null, updateHistory = true, forceAuto = false) {
+  const section = document.getElementById(id);
+  if (!section) return;
+
+  if (updateHistory && window.location.hash !== `#${id}`) {
+    window.history.pushState(null, '', `#${id}`);
+  }
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const behavior: ScrollBehavior = forceAuto || reduceMotion ? 'auto' : 'smooth';
+  if (id === 'top') {
+    window.scrollTo({ top: 0, behavior });
+    return;
+  }
+
+  // All navigated content sections start with a .wrap whose first child is
+  // the section's intro/layout. Align that content just below the compact bar.
+  const content = section.querySelector<HTMLElement>(':scope > .wrap > *') ?? section;
+  const contentTop = window.scrollY + content.getBoundingClientRect().top;
+  const headerHeight = header?.getBoundingClientRect().height ?? 62;
+  const breathingRoom = window.matchMedia('(max-width: 860px)').matches ? 10 : 14;
+  const destination = Math.max(0, contentTop - headerHeight - breathingRoom);
+
+  window.scrollTo({ top: destination, behavior });
+}
+
 export function Nav() {
+  const [activeSection, setActiveSection] = useState<string>('top');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const navRef = useRef<HTMLElement>(null);
+
+  // Read the already-resolved system/stored theme after hydration. If the user
+  // has not selected a preference, keep following OS appearance changes.
+  useEffect(() => {
+    const root = document.documentElement;
+    const readTheme = (): 'light' | 'dark' => root.dataset.theme === 'dark' ? 'dark' : 'light';
+    setTheme(readTheme());
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const followSystemTheme = (event: MediaQueryListEvent) => {
+      let savedPreference: string | null = null;
+      try { savedPreference = window.localStorage.getItem('business-aid-theme'); } catch (_) { /* storage may be disabled */ }
+      if (savedPreference === 'dark' || savedPreference === 'light') return;
+      const nextTheme = event.matches ? 'dark' : 'light';
+      root.dataset.theme = nextTheme;
+      setTheme(nextTheme);
+    };
+
+    media.addEventListener?.('change', followSystemTheme);
+    return () => media.removeEventListener?.('change', followSystemTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme: 'light' | 'dark' = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    try { window.localStorage.setItem('business-aid-theme', nextTheme); } catch (_) { /* theme still works for this page view */ }
+    setTheme(nextTheme);
+  };
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) setIsMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+    };
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    const navigateHashLink = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const origin = event.target;
+      if (!(origin instanceof Element)) return;
+      const anchor = origin.closest<HTMLAnchorElement>('a[href^="#"]');
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+
+      const id = anchor.getAttribute('href')?.slice(1);
+      if (!id || !NAV_ITEMS.some((item) => item.id === id)) return;
+
+      event.preventDefault();
+      setIsMenuOpen(false);
+      scrollToSectionContent(id, navRef.current);
+    };
+
+    const alignCurrentHash = () => {
+      const id = window.location.hash.slice(1);
+      if (!NAV_ITEMS.some((item) => item.id === id)) return;
+      // Let the browser finish its native initial/history jump, then correct it
+      // to the same measured landing point used for clicks.
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => scrollToSectionContent(id, navRef.current, false, true));
+      });
+    };
+
+    document.addEventListener('click', navigateHashLink);
+    window.addEventListener('hashchange', alignCurrentHash);
+    window.addEventListener('popstate', alignCurrentHash);
+    if (window.location.hash) alignCurrentHash();
+
+    return () => {
+      document.removeEventListener('click', navigateHashLink);
+      window.removeEventListener('hashchange', alignCurrentHash);
+      window.removeEventListener('popstate', alignCurrentHash);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sectionIds = NAV_ITEMS.map((item) => item.id);
+    const updateActiveSection = () => {
+      // The fixed glass header is taken into account when selecting the current section.
+      const readingLine = window.scrollY + Math.min(150, window.innerHeight * 0.24);
+      let next = 'top';
+      for (const id of sectionIds) {
+        const section = document.getElementById(id);
+        if (section && section.offsetTop <= readingLine) next = id;
+      }
+      setActiveSection((current) => current === next ? current : next);
+    };
+
+    updateActiveSection();
+    window.addEventListener('scroll', updateActiveSection, { passive: true });
+    window.addEventListener('resize', updateActiveSection);
+    return () => {
+      window.removeEventListener('scroll', updateActiveSection);
+      window.removeEventListener('resize', updateActiveSection);
+    };
+  }, []);
+
   return (
-    <header className="nav">
+    <header ref={navRef} className={`nav${isMenuOpen ? ' is-menu-open' : ''}`} onKeyDown={(event) => { if (event.key === 'Escape') setIsMenuOpen(false); }}>
       <div className="wrap nav-in">
         <Logo />
-        <nav aria-label="Primary" className="links">
-          <a href="#services">Services</a><a href="#ezsell">EZsell</a><a href="#contact">Contact</a>
+        <nav aria-label="Primary navigation" className="links" id="primary-navigation">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              className={`nav-link${activeSection === item.id ? ' is-active' : ''}`}
+              aria-current={activeSection === item.id ? 'location' : undefined}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span>{item.label}</span>
+            </a>
+          ))}
         </nav>
-        <a className="btn sm" href="#contact">Free consultation</a>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-pressed={theme === 'dark'}
+        >
+          {theme === 'dark' ? (
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.8 15.4A8.5 8.5 0 0 1 8.6 3.2 8.7 8.7 0 1 0 20.8 15.4Z" /></svg>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`mobile-menu-toggle${isMenuOpen ? ' is-open' : ''}`}
+          aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isMenuOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </div>
     </header>
   );
@@ -99,9 +287,13 @@ export function Footer() {
   return (
     <footer className="foot">
       <div className="wrap foot-in">
-        <Logo />
+        <div className="foot-brand"><Logo footer /></div>
         <address>{CONTACT.address}<br /><a href={`tel:${CONTACT.phone.replace(/\s/g, '')}`}>{CONTACT.phone}</a> · <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a></address>
-        <p><a href="#">Privacy Policy</a> · <a href="#">Terms of Service</a> · <a href="https://ezsell.xyz/">ezsell.xyz</a></p>
+        <p className="foot-links"><a href="#">Privacy Policy</a> · <a href="#">Terms of Service</a> · <a href="https://ezsell.xyz/">EZsell</a></p>
+        <div className="foot-bottom">
+          <span>© {new Date().getFullYear()} Business Aid. All rights reserved.</span>
+          <span>Where business gets better.</span>
+        </div>
       </div>
     </footer>
   );
@@ -416,23 +608,145 @@ export function EZsell() {
 }
 
 /* ---------- Contact ---------- */
+type ContactField = 'name' | 'phone' | 'services' | 'message';
+type ContactErrors = Partial<Record<ContactField, string>>;
+type ContactValues = { name: string; phone: string; services: string[]; message: string };
+
+function validateContact(values: ContactValues): ContactErrors {
+  const errors: ContactErrors = {};
+  const name = values.name.trim();
+  const phone = values.phone;
+  const message = values.message.trim();
+
+  if (!name) errors.name = 'Please enter your name.';
+  else if (name.length > 120) errors.name = 'Name must be 120 characters or fewer.';
+
+  if (!phone) errors.phone = 'Please enter your phone number.';
+  else if (!/^\d+$/.test(phone)) errors.phone = 'Use digits only; do not include spaces, +, or other characters.';
+  else if (!phone.startsWith('0')) errors.phone = 'Phone number must start with 0.';
+  else if (phone.length !== 11) errors.phone = 'Phone number must be exactly 11 digits.';
+
+  if (values.services.length === 0) errors.services = 'Please choose at least one service.';
+
+  if (!message) errors.message = 'Please tell us how we can help.';
+  else if (message.length > 3000) errors.message = 'Message must be 3,000 characters or fewer.';
+
+  return errors;
+}
+
 export function Contact() {
   const [services, setServices] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [msg, setMsg] = useState('');
-  const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ContactErrors>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
   useEffect(() => {
-    const on = (e: Event) => { const service = (e as CustomEvent<string>).detail; setServices((previous) => (previous.includes(service) ? previous : [...previous, service])); };
+    const on = (e: Event) => {
+      const service = (e as CustomEvent<string>).detail;
+      if (typeof service !== 'string' || !service.trim()) return;
+      const next = services.includes(service) ? services : [...services, service];
+      setServices(next);
+      if (hasAttemptedSubmit || fieldErrors.services) {
+        setFieldErrors((current) => {
+          const updated = { ...current };
+          const error = validateContact({ name, phone, services: next, message: msg }).services;
+          if (error) updated.services = error;
+          else delete updated.services;
+          return updated;
+        });
+      }
+    };
     window.addEventListener('ba:service', on);
     return () => window.removeEventListener('ba:service', on);
-  }, []);
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const text = `Hello Business Aid, I'm ${name} (${phone}). Interested in: ${services.join(', ') || 'General'}. ${msg}`;
-    window.open(`https://wa.me/${CONTACT.wa}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-    setSent(true);
+  }, [hasAttemptedSubmit, fieldErrors.services, name, phone, msg, services]);
+
+  const enquiry: ContactValues = { name, phone, services, message: msg };
+
+  const setFieldError = (field: ContactField, error?: string) => {
+    setFieldErrors((current) => {
+      const updated = { ...current };
+      if (error) updated[field] = error;
+      else delete updated[field];
+      return updated;
+    });
   };
+
+  const validateOne = (field: ContactField, values: ContactValues = enquiry) => {
+    setFieldError(field, validateContact(values)[field]);
+  };
+
+  const validateBeforeAction = () => {
+    const errors = validateContact(enquiry);
+    setHasAttemptedSubmit(true);
+    setFieldErrors(errors);
+    const firstInvalid = (Object.keys(errors) as ContactField[])[0];
+    if (firstInvalid) {
+      formRef.current?.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setStatus(null);
+    if (!validateBeforeAction()) return;
+
+    setSubmitting(true);
+    try {
+      const result = await submitForm({ ...enquiry, name: name.trim(), phone: phone.trim(), message: msg.trim() });
+      setStatus({ type: 'success', message: result.message || 'Thank you. Your enquiry has been sent successfully.' });
+    } catch (error) {
+      setStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'We could not send your enquiry. Please try again or use WhatsApp.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const sendEnquiryOnWhatsApp = async () => {
+    setStatus(null);
+    if (!validateBeforeAction()) return;
+
+    // Open the tab synchronously to avoid popup blockers while the server checks
+    // and records the attempt against the same 3-in-24-hour limit as form submits.
+    const whatsappWindow = window.open('about:blank', '_blank');
+    if (!whatsappWindow) {
+      setStatus({ type: 'error', message: 'Please allow pop-ups for this site to prepare your WhatsApp enquiry. Your enquiry has not been counted.' });
+      return;
+    }
+    whatsappWindow.opener = null;
+    setSubmitting(true);
+
+    try {
+      await submitForm({
+        ...enquiry,
+        name: name.trim(),
+        phone: phone.trim(),
+        message: msg.trim(),
+        channel: 'whatsapp',
+      });
+      const text = `Hello Business Aid, I'm ${name.trim()} (${phone.trim()}). Interested in: ${services.join(', ')}. ${msg.trim()}`;
+      whatsappWindow.location.replace(`https://wa.me/${CONTACT.wa}?text=${encodeURIComponent(text)}`);
+      setStatus({ type: 'info', message: 'Your WhatsApp draft is ready. It counts toward your limit of 3 enquiries per phone number in 24 hours. Review it in WhatsApp and press Send.' });
+    } catch (error) {
+      whatsappWindow.close();
+      setStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'We could not prepare your WhatsApp enquiry. Please try again.',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <section id="contact" className="sec tint contact-section">
       <div className="wrap">
@@ -449,15 +763,43 @@ export function Contact() {
             <p className="contact-helper">Prefer a quick conversation? Contact us by phone or WhatsApp.</p>
             <a className="btn ghost contact-whatsapp" href={`https://wa.me/${CONTACT.wa}`} target="_blank" rel="noopener noreferrer">Chat on WhatsApp ↗</a>
           </div>
-          <form className="form" onSubmit={submit}>
-            <label>Name<input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
-            <label>Phone or WhatsApp<input required value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" /></label>
-            <div className="fld"><span>What do you need help with?</span>
-              <TagInput label="Services you need" options={[...SERVICES.map((service) => service.name), 'EZsell', 'General enquiry']} value={services} onChange={setServices} placeholder="Choose one or more services" />
+          <form ref={formRef} className="form" onSubmit={handleSubmit} noValidate>
+            <label htmlFor="contact-name">Name
+              <input id="contact-name" name="name" aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined}
+                maxLength={120} value={name} onChange={(e) => { const value = e.target.value; setName(value); if (hasAttemptedSubmit || fieldErrors.name) validateOne('name', { ...enquiry, name: value }); }}
+                onBlur={() => validateOne('name')} autoComplete="name" />
+              {fieldErrors.name && <span className="field-error" id="contact-name-error" role="alert">{fieldErrors.name}</span>}
+            </label>
+            <label htmlFor="contact-phone">Phone or WhatsApp
+              <input id="contact-phone" name="phone" type="tel" inputMode="numeric" autoComplete="tel-national" aria-invalid={Boolean(fieldErrors.phone)} aria-describedby={fieldErrors.phone ? 'contact-phone-error' : undefined}
+                value={phone} onChange={(e) => { const value = e.target.value; setPhone(value); if (hasAttemptedSubmit || fieldErrors.phone) validateOne('phone', { ...enquiry, phone: value }); }}
+                onBlur={() => validateOne('phone')} />
+              {fieldErrors.phone && <span className="field-error" id="contact-phone-error" role="alert">{fieldErrors.phone}</span>}
+            </label>
+            <div className="fld" aria-describedby={fieldErrors.services ? 'contact-services-error' : undefined}>
+              <span>What do you need help with?</span>
+              <TagInput label="Services you need" inputName="services" inputInvalid={Boolean(fieldErrors.services)} inputDescribedBy={fieldErrors.services ? 'contact-services-error' : undefined}
+                options={[...SERVICES.map((service) => service.name), 'EZsell', 'General enquiry']} value={services}
+                onChange={(value) => { setServices(value); if (hasAttemptedSubmit || fieldErrors.services) validateOne('services', { ...enquiry, services: value }); }} placeholder="Choose one or more services" />
+              {fieldErrors.services && <p className="field-error" id="contact-services-error" role="alert">{fieldErrors.services}</p>}
             </div>
-            <label>How can we help?<textarea rows={3} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Briefly describe what you need." /></label>
-            <button className="btn" type="submit">{sent ? 'Open WhatsApp again' : 'Send enquiry on WhatsApp'}</button>
-            <p className="form-note">Your message will open in WhatsApp so you can review it before sending.</p>
+            <label htmlFor="contact-message">How can we help?
+              <textarea id="contact-message" name="message" rows={3} maxLength={3000} aria-invalid={Boolean(fieldErrors.message)} aria-describedby={fieldErrors.message ? 'contact-message-error' : undefined}
+                value={msg} onChange={(e) => { const value = e.target.value; setMsg(value); if (hasAttemptedSubmit || fieldErrors.message) validateOne('message', { ...enquiry, message: value }); }}
+                onBlur={() => validateOne('message')} placeholder="Briefly describe what you need." />
+              {fieldErrors.message && <span className="field-error" id="contact-message-error" role="alert">{fieldErrors.message}</span>}
+            </label>
+            <div className="form-actions">
+              <button className="btn" type="submit" disabled={submitting} aria-busy={submitting}>
+                {submitting ? 'Sending enquiry…' : 'Send enquiry'}
+              </button>
+              <button className="btn ghost" type="button" onClick={sendEnquiryOnWhatsApp} disabled={submitting}>
+                Send enquiry on WhatsApp ↗
+              </button>
+            </div>
+            <p className="form-note" role="status" aria-live="polite" data-status={status?.type ?? 'idle'}>
+              {status?.message ?? 'All fields are required. Use an 11-digit phone number starting with 0. Limit: 3 enquiries per phone number every 24 hours.'}
+            </p>
           </form>
         </div>
       </div>

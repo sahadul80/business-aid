@@ -14,7 +14,22 @@ export const viewport: Viewport = { themeColor: '#3F8B84' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function () {
+              var key = 'business-aid-theme';
+              var theme = null;
+              try { theme = window.localStorage.getItem(key); } catch (_) {}
+              if (theme !== 'dark' && theme !== 'light') {
+                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              }
+              document.documentElement.dataset.theme = theme;
+            })();`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
