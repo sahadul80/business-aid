@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Quicksand, Lato } from 'next/font/google';
 import './globals.css';
+import './premium.css';
 
 const display = Quicksand({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-display' });
 const body = Lato({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-body' });
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `(function () {
+              document.documentElement.classList.add('js');
               var key = 'business-aid-theme';
               var theme = null;
               try { theme = window.localStorage.getItem(key); } catch (_) {}

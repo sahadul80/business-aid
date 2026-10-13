@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { CLIENTS, CONTACT, SERVICES, WORK_TAGS, type Cat } from '@/lib/data';
 import { submitForm } from '@/lib/formdata';
+import { rv } from './Motion';
 import { Globe, HeroScene, Ring14, SCENES, v } from './Scenes';
 
 /* ---------- hooks ---------- */
@@ -86,6 +87,7 @@ const Logo = ({ footer = false }: { footer?: boolean }) => (
   </a>
 );
 
+
 const NAV_ITEMS = [
   { id: 'top', label: 'Home', href: '#top' },
   { id: 'services', label: 'Services', href: '#services' },
@@ -129,6 +131,8 @@ export function Nav() {
   const [activeSection, setActiveSection] = useState<string>('top');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [scrolled, setScrolled] = useState(false);
+  const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const menuPanelRef = useRef<HTMLElement>(null);
   const menuToggleRef = useRef<HTMLButtonElement>(null);
@@ -156,7 +160,10 @@ export function Nav() {
 
   const toggleTheme = () => {
     const nextTheme: 'light' | 'dark' = theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = nextTheme;
+    const root = document.documentElement;
+    root.classList.add('theme-anim');
+    window.setTimeout(() => root.classList.remove('theme-anim'), 500);
+    root.dataset.theme = nextTheme;
     try { window.localStorage.setItem('business-aid-theme', nextTheme); } catch (_) { /* theme still works for this page view */ }
     setTheme(nextTheme);
   };
@@ -229,6 +236,31 @@ export function Nav() {
     };
   }, []);
 
+  // Glass header once the page has moved.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Measure the active link so a single pill can glide between sections (desktop only; hidden by CSS on mobile).
+  useEffect(() => {
+    const panel = menuPanelRef.current;
+    if (!panel) return;
+    const measure = () => {
+      const el = panel.querySelector<HTMLElement>('.nav-link.is-active');
+      if (!el || panel.offsetParent === null) return;
+      const next = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+      setPill((prev) => (prev && prev.x === next.x && prev.y === next.y && prev.w === next.w && prev.h === next.h ? prev : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    document.fonts?.ready.then(measure);
+    return () => observer.disconnect();
+  }, [activeSection]);
+
   useEffect(() => {
     const sectionIds = NAV_ITEMS.map((item) => item.id);
     const updateActiveSection = () => {
@@ -254,7 +286,7 @@ export function Nav() {
   return (
     <header
       ref={navRef}
-      className={`nav${isMenuOpen ? ' is-menu-open' : ''}`}
+      className={`nav${isMenuOpen ? ' is-menu-open' : ''}${scrolled ? ' is-scrolled' : ''}`}
       onKeyDown={(event) => {
         if (event.key === 'Escape') setIsMenuOpen(false);
         if (event.key !== 'Tab' || !isMenuOpen || !window.matchMedia('(max-width: 860px)').matches) return;
@@ -299,6 +331,13 @@ export function Nav() {
               <span>{item.label}</span>
             </a>
           ))}
+          {pill && (
+            <span
+              className="nav-indicator"
+              aria-hidden="true"
+              style={{ '--x': `${pill.x}px`, '--y': `${pill.y}px`, '--w': `${pill.w}px`, '--h': `${pill.h}px` } as CSSProperties}
+            />
+          )}
         </nav>
         <div className="nav-actions" role="group" aria-label="Display and navigation controls">
           <button
@@ -310,9 +349,9 @@ export function Nav() {
             aria-pressed={theme === 'dark'}
           >
             {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+              <svg key="sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
             ) : (
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.8 15.4A8.5 8.5 0 0 1 8.6 3.2 8.7 8.7 0 1 0 20.8 15.4Z" /></svg>
+              <svg key="moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.8 15.4A8.5 8.5 0 0 1 8.6 3.2 8.7 8.7 0 1 0 20.8 15.4Z" /></svg>
             )}
           </button>
           <button
@@ -337,7 +376,7 @@ export function Nav() {
 export function Footer() {
   return (
     <footer className="foot">
-      <div className="wrap foot-in">
+      <div className="wrap foot-in" {...rv(0, 'fade')}>
         <div className="foot-brand"><Logo footer /></div>
         <address>{CONTACT.address}<br /><a href={`tel:${CONTACT.phone.replace(/\s/g, '')}`}>{CONTACT.phone}</a> · <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a></address>
         <p className="foot-links"><a href="#">Privacy Policy</a> · <a href="#">Terms of Service</a> · <a href="https://ezsell.xyz/">EZsell</a></p>
@@ -366,7 +405,13 @@ export function Hero() {
     <section id="top" className="hero">
       <div className="wrap hero-in" ref={ref}>
         <div className="hero-l">
-          <h1 className="tag">Where business gets better</h1>
+          <h1 className="tag">
+            {'Where business gets better'.split(' ').map((word, i) => (
+              <span key={i}>
+                <span className="w-mask"><span className="w-in" style={{ '--wi': i } as CSSProperties}>{word}</span></span>{' '}
+              </span>
+            ))}
+          </h1>
           <p className="hero-description">Business growth, digital marketing, and essential tax and company-compliance support for e-commerce brands and entrepreneurs.</p>
           <div className="big" aria-label="Eight times sales growth in five months">
             <span className="n">{n}</span><span className="x an pulse">×</span>
@@ -410,13 +455,13 @@ export function Services() {
   return (
     <section id="services" className="sec services-section">
       <div className="wrap">
-        <div className="section-intro">
+        <div className="section-intro" data-reveal="group">
           <p className="eyebrow">Our services</p>
           <h2 className="section-title">Growth and compliance, under one roof.</h2>
           <p className="section-copy">From attracting online customers to managing tax and company filings, choose practical support that matches your business needs.</p>
         </div>
 
-        <div className="svc service-explorer">
+        <div className="svc service-explorer" {...rv(80)}>
           <aside className="service-navigation" aria-label="Choose a service">
             <p className="nav-label">Choose a service area</p>
             <div className="category-options" role="tablist" aria-label="Service areas">
@@ -431,7 +476,6 @@ export function Services() {
                 >
                   <span className="category-title">{category === 'growth' ? 'E-commerce' : 'Legal Aid'}</span>
                   <span className="category-subtitle">{category === 'growth' ? 'Growth & marketing' : 'Tax & company compliance'}</span>
-                  <span className="category-arrow" aria-hidden="true">↗</span>
                 </button>
               ))}
             </div>
@@ -455,7 +499,7 @@ export function Services() {
             </div>
           </aside>
 
-          <div className="detail" key={active.slug}>
+          <div className="detail" key={active.slug} data-glow>
             <div className="scene-wrap pop-in">{Scene()}</div>
             <div className="service-copy">
               <p className="service-kicker">{cat === 'growth' ? 'E-commerce growth & marketing' : 'Legal aid & compliance'}</p>
@@ -470,7 +514,7 @@ export function Services() {
 
 
         {/* Mobile-only service explorer: selected service details expand inside the chosen service group. */}
-        <div className="service-explorer-mobile">
+        <div className="service-explorer-mobile" {...rv(60)}>
           <div className="mobile-service-area-select">
             <p className="nav-label">Choose a section area</p>
             <div className="category-options" role="tablist" aria-label="Service areas">
@@ -487,7 +531,6 @@ export function Services() {
                 >
                   <span className="category-title">{category === 'growth' ? 'E-commerce' : 'Legal Aid'}</span>
                   <span className="category-subtitle">{category === 'growth' ? 'Growth & marketing' : 'Tax & company compliance'}</span>
-                  <span className="category-arrow" aria-hidden="true">↗</span>
                 </button>
               ))}
             </div>
@@ -626,7 +669,6 @@ function WorkMarqueeItem({ client, duplicate = false }: { client: (typeof CLIENT
     >
       <span className="work-marquee-logo"><PartnerLogo client={client} compact /></span>
       <span className="work-marquee-name">{brandLabel(client)}</span>
-      <span className="work-marquee-arrow" aria-hidden="true">↗</span>
     </a>
   );
 }
@@ -637,12 +679,12 @@ export function Work() {
   return (
     <section id="work" className="sec tint work-section">
       <div className="wrap">
-        <div className="section-intro">
+        <div className="section-intro" data-reveal="group">
           <p className="eyebrow">Selected work</p>
           <h2 className="section-title">Client work across industries.</h2>
           <p className="section-copy">Explore client businesses across e-commerce, food delivery, retail, home services, and international markets, alongside the services Business Aid has provided.</p>
         </div>
-        <div className="work-filter-row">
+        <div className="work-filter-row" {...rv(0)}>
           <p>Explore by service</p>
           <TagInput label="Filter work by service" options={WORK_TAGS} value={tags} onChange={setTags} placeholder="Choose a service to filter" />
         </div>
@@ -651,7 +693,8 @@ export function Work() {
             <article
               key={client.name}
               className={`client-card ${client.result ? 'client-featured' : ''}`}
-              style={{ animationDelay: `${(index % 6) * 55}ms` }}
+              data-glow
+              {...rv(Math.min((index % 2) * 90 + (Math.floor(index / 2) % 3) * 40, 260))}
             >
               <a className="client-logo-link" href={client.href} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${client.name}`}>
                 <PartnerLogo client={client} />
@@ -659,7 +702,7 @@ export function Work() {
               <div className="client-details">
                 <div className="client-site-row">
                   <a className="client-site" href={client.href} target="_blank" rel="noopener noreferrer" aria-label={`Website: ${client.name}`}>
-                    {client.name}<span aria-hidden="true">↗</span>
+                    {client.name}
                   </a>
                   {client.result && <span className="client-result">{client.result}</span>}
                 </div>
@@ -674,7 +717,7 @@ export function Work() {
         {shown.length === 0 && <p className="empty-work">No client examples match that service. Remove a filter to see more work.</p>}
         <p className="work-note">Client names and logos identify the referenced businesses. Services listed reflect the current project framework; publish client work and performance claims only with appropriate approval.</p>
 
-        <div className="work-marquee" aria-label="Client and partner businesses">
+        <div className="work-marquee" aria-label="Client and partner businesses" {...rv(0, 'fade')}>
           <p className="work-marquee-kicker">Businesses across our client portfolio</p>
           <div className="work-marquee-window">
             <div className="work-marquee-track">
@@ -714,13 +757,13 @@ export function EZsell() {
     <section id="ezsell" className="sec ez-section">
       <div className="wrap">
         <div className="ez-layout">
-          <div className="ez-preview">
-            <div className="iframe-bar"><span className="browser-dots"><i/><i/><i/></span><span>ezsell.xyz</span><a href="https://ezsell.xyz/" target="_blank" rel="noopener noreferrer">Open full site ↗</a></div>
+          <div className="ez-preview" {...rv(0, 'left')}>
+            <div className="iframe-bar"><span className="browser-dots"><i/><i/><i/></span><span>ezsell.xyz</span><a href="https://ezsell.xyz/" target="_blank" rel="noopener noreferrer">Open full site</a></div>
             <iframe title="EZsell full website preview" src="https://ezsell.xyz/" loading="lazy" referrerPolicy="strict-origin-when-cross-origin" />
             <p className="iframe-note">Scroll inside the preview to explore EZsell. If the site blocks embedding, open it in a new tab.</p>
           </div>
 
-          <div className="ez-copy">
+          <div className="ez-copy" data-reveal="group" style={{ '--rd': '120ms' } as CSSProperties}>
             <span className="eyebrow">Our product</span>
             <h2 className="section-title">Meet EZsell.</h2>
             <p className="section-copy">A selling platform for e-commerce and Facebook-based businesses, with AI-assisted customer conversations.</p>
@@ -733,8 +776,8 @@ export function EZsell() {
               </ul>
             </div>
             <div className="cta ez-links">
-              <a className="btn" href="https://ezsell.xyz/" target="_blank" rel="noopener noreferrer">Visit EZsell ↗</a>
-              <a className="btn ghost" href="https://facebook.com/EzSellAI" target="_blank" rel="noopener noreferrer">Follow on Facebook ↗</a>
+              <a className="btn" href="https://ezsell.xyz/" target="_blank" rel="noopener noreferrer">Visit EZsell</a>
+              <a className="btn ghost" href="https://facebook.com/EzSellAI" target="_blank" rel="noopener noreferrer">Follow on Facebook</a>
             </div>
           </div>
         </div>
@@ -886,20 +929,20 @@ export function Contact() {
   return (
     <section id="contact" className="sec tint contact-section">
       <div className="wrap">
-        <div className="section-intro contact-intro">
+        <div className="section-intro contact-intro" data-reveal="group">
           <p className="eyebrow">Contact us</p>
           <h2 className="section-title">Let’s talk about your business.</h2>
           <p className="section-copy">Tell us what you want to improve or where you need compliance support, and we’ll help you identify the right next step.</p>
         </div>
         <div className="contact">
-          <div className="info">
+          <div className="info" data-reveal="group">
             <a className="big-link" href={`tel:${CONTACT.phone.replace(/\s/g, '')}`}>{CONTACT.phone}</a>
             <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
             <address>{CONTACT.address}</address>
             <p className="contact-helper">Prefer a quick conversation? Contact us by phone or WhatsApp.</p>
-            <a className="btn ghost contact-whatsapp" href={`https://wa.me/${CONTACT.wa}`} target="_blank" rel="noopener noreferrer">Chat on WhatsApp ↗</a>
+            <a className="btn ghost contact-whatsapp" href={`https://wa.me/${CONTACT.wa}`} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a>
           </div>
-          <form ref={formRef} className="form" onSubmit={handleSubmit} noValidate>
+          <form ref={formRef} className="form" onSubmit={handleSubmit} noValidate {...rv(140, 'scale')}>
             <label htmlFor="contact-name">Name
               <input id="contact-name" name="name" aria-invalid={Boolean(fieldErrors.name)} aria-describedby={fieldErrors.name ? 'contact-name-error' : undefined}
                 maxLength={120} value={name} onChange={(e) => { const value = e.target.value; setName(value); if (hasAttemptedSubmit || fieldErrors.name) validateOne('name', { ...enquiry, name: value }); }}
@@ -930,11 +973,11 @@ export function Contact() {
                 {submitting ? 'Sending enquiry…' : 'Send enquiry'}
               </button>
               <button className="btn ghost" type="button" onClick={sendEnquiryOnWhatsApp} disabled={submitting}>
-                Send enquiry on WhatsApp ↗
+                Send enquiry on WhatsApp
               </button>
             </div>
-            <p className="form-note" role="status" aria-live="polite" data-status={status?.type ?? 'idle'}>
-              {status?.message ?? 'All fields are required. Use an 11-digit phone number starting with 0. Limit: 3 enquiries per phone number every 24 hours.'}
+            <p className="form-note" key={status?.message ?? 'idle'} role="status" aria-live="polite" data-status={status?.type ?? 'idle'}>
+              {status?.message ?? 'You can send 3 enquiries in a day.'}
             </p>
           </form>
         </div>

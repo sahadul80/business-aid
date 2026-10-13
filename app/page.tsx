@@ -1,3 +1,4 @@
+import { MotionRoot } from '@/components/Motion';
 import { Nav, Hero, Services, EZsell, Work, Contact, Footer, WhatsApp } from '@/components/Sections';
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
       </main>
       <Footer />
       <WhatsApp />
+      <MotionRoot />
     </>
   );
 }

@@ -25,10 +25,34 @@ npm run dev
 
 Before starting locally, copy `.env.example` to `.env.local` and fill in the Google Sheets values. Then open `http://localhost:3000`.
 
+## Premium motion & polish layer
+
+The animation and visual refinement lives in two additive files, so the original design system in `app/globals.css` is untouched:
+
+- `app/premium.css` — imported after `globals.css` in `app/layout.tsx`; wins by cascade order. Contains the easing/shadow tokens, scroll-reveal states, hero choreography, nav glass + gliding pill, button depth/sweeps, card spotlight, services/work/EZsell/contact refinements, WhatsApp button, and the reduced-motion block (last section).
+- `components/Motion.tsx` — `<MotionRoot />` (mounted in `app/page.tsx`) plus the `rv()` helper. One small client controller handles: scroll reveal (IntersectionObserver + MutationObserver for content that mounts later), the top scroll-progress bar, hero parallax, pointer spotlight on cards, magnetic buttons, and pausing off-screen SVG loops.
+
+### Using the reveal system
+
+```tsx
+<div data-reveal="group">…</div>      {/* children stagger in */}
+<div {...rv(120, 'left')}>…</div>      {/* delay in ms; 'up' | 'fade' | 'left' | 'right' | 'scale' */}
+<div data-glow>…</div>                  {/* pointer-following spotlight on a card */}
+```
+
+Reveal states are gated behind `html.js` (added by the inline script in `layout.tsx` before first paint), so the page is fully visible without JavaScript. Under `prefers-reduced-motion`, everything is shown immediately and nothing moves. Only `transform`, `translate`, `scale` and `opacity` are animated.
+
+### Also fixed in this pass
+
+- Hero illustration: the dashed ring and the growth line were missing `fill="none"` and rendered as solid black shapes.
+- Dark mode: primary buttons used white text on the light dark-mode teal (weak contrast); they now use a deeper teal gradient.
+
 ## Main files
 
 - `app/page.tsx` — homepage section order.
 - `app/layout.tsx` — metadata, fonts, root layout, and pre-render theme initialization to avoid a light-mode flash when dark mode is preferred.
+- `app/premium.css` — motion, depth and polish layered on top of `globals.css`.
+- `components/Motion.tsx` — scroll reveal, progress bar, pointer effects.
 - `app/globals.css` — design tokens, responsive layouts, light/dark contrast styles, animations, typography, and iframe styling.
 - `components/Sections.tsx` — header, hero, services, EZsell, selected work, contact, footer, and WhatsApp action.
 - `components/Scenes.tsx` — SVG illustrations.

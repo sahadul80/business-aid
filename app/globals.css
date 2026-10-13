@@ -272,7 +272,7 @@ a{color:inherit;text-decoration:none}
 .contact{align-items:start}
 .contact-helper{font-size:14px;line-height:1.6;opacity:.8;max-width:350px}
 .contact-whatsapp{align-self:flex-start;font-size:14px;padding:11px 18px}
-.form-note{font-size:12px;line-height:1.5;opacity:.7}
+.form-note{font-size:12px;line-height:1.5;opacity:.7;font-style:italic;}
 
 @media(max-width:1000px){
   .service-explorer{grid-template-columns:minmax(0,1.1fr) minmax(270px,.9fr);gap:18px}

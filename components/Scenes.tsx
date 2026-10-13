@@ -17,11 +17,11 @@ export function HeroScene() {
   const pts = hs.map((h, i) => [170 + i * 54, 420 - h]);
   return (
     <svg viewBox="0 0 560 460" className="hero-art" role="img" aria-label="Bars climbing to an eightfold sales gain, a stamped document, and an AI assistant recommending the brand">
-      <circle cx="330" cy="240" r="205" className="s-t an spin" strokeWidth="2" strokeDasharray="4 14" />
+      <circle cx="330" cy="240" r="205" fill="none" className="s-t an spin" strokeWidth="2" strokeDasharray="4 14" />
       {hs.map((h, i) => (
         <rect key={i} x={150 + i * 54} y={420 - h} width="40" height={h} rx="12" className={`an rise ${i === 6 ? 'f-a' : 'f-t'}`} style={{ ...v(i), opacity: i === 6 ? 1 : 0.35 + i * 0.1 }} />
       ))}
-      <path d={'M' + pts.map((p) => p.join(' ')).join(' L')} pathLength={1} strokeDasharray={1} className="s-i an draw" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={v(7, { '--len': 1 })} />
+      <path d={'M' + pts.map((p) => p.join(' ')).join(' L')} pathLength={1} strokeDasharray={1} fill="none" className="s-i an draw" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={v(7, { '--len': 1 })} />
       {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r="6" className="f-w s-i an pop" strokeWidth="3" style={v(i + 3)} />)}
       <g className="an float" style={v(0)}>
         <rect x="14" y="300" width="140" height="150" rx="18" className="f-w" />
